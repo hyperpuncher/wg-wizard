@@ -1,0 +1,86 @@
+#!/usr/bin/env dash
+
+init() {
+	if ! which wg; then
+		apt install -y iptables wireguard qrencode
+	fi
+
+	echo "net.ipv4.ip_forward = 1" >>/etc/sysctl.conf
+	sysctl -p
+
+	SERVER_PRIV_KEY=$(wg genkey)
+	SERVER_PUB_KEY=$(echo "$SERVER_PRIV_KEY" | wg pubkey)
+	read -rp "Enter VPN name: " SERVER_NAME
+
+	cat <<-EOF >/etc/wireguard/wg0.conf
+		[Interface]
+		PrivateKey = $SERVER_PRIV_KEY
+		Address = 10.0.0.1/24
+		ListenPort = 51820
+		SaveConfig = true
+		PostUp = iptables -A FORWARD -i %i -j ACCEPT; iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
+		PostDown = iptables -D FORWARD -i %i -j ACCEPT; iptables -t nat -D POSTROUTING -o eth0 -j MASQUERADE
+	EOF
+
+	systemctl enable wg-quick@wg0.service
+	systemctl start wg-quick@wg0.service
+
+	cat <<-EOF >/etc/wireguard/params
+		SERVER_PUB_KEY=$SERVER_PUB_KEY
+		SERVER_IP=$(curl -s ifconfig.co | tr -d '\n')
+		SERVER_NAME=$SERVER_NAME
+		NUMBER_OF_CLIENTS=1
+	EOF
+}
+
+add() {
+	CLIENT_NAME=$1
+	CLIENT_PRIV_KEY=$(wg genkey)
+	CLIENT_PUB_KEY=$(echo "$CLIENT_PRIV_KEY" | wg pubkey)
+	#TODO
+	NUMBER_OF_CLIENTS=$((NUMBER_OF_CLIENTS + 1))
+	CLIENT_IP=10.0.0."$NUMBER_OF_CLIENTS"
+
+	mkdir -p "/etc/wireguard/$CLIENT_NAME"
+
+	cat <<-EOF >"/etc/wireguard/$CLIENT_NAME/$SERVER_NAME.conf"
+		[Interface]
+		PrivateKey = $CLIENT_PRIV_KEY
+		Address = $CLIENT_IP
+
+		[Peer]
+		PublicKey = $SERVER_PUB_KEY
+		Endpoint = $SERVER_IP:51820
+		AllowedIPs = 0.0.0.0/0
+		PersistentKeepalive = 20
+	EOF
+
+	cat <<-EOF >>/etc/wireguard/wg0.conf
+
+		#Client $CLIENT_NAME
+		[Peer]
+		PublicKey = $CLIENT_PUB_KEY
+		AllowedIPs = $CLIENT_IP
+	EOF
+
+	sed -i "s/NUMBER_OF_CLIENTS.*/NUMBER_OF_CLIENTS=$NUMBER_OF_CLIENTS/" /etc/wireguard/params
+
+	# qrencode -t ansiutf8 </etc/wireguard/"$CLIENT_NAME"/"$SERVER_NAME".conf
+}
+
+if [ -r /etc/wireguard/params ]; then
+	#shellcheck source=/dev/null
+	. /etc/wireguard/params
+
+	case $1 in
+	"-a")
+		add "$2"
+		;;
+	*)
+		echo "Usage:"
+		;;
+	esac
+
+else
+	init
+fi

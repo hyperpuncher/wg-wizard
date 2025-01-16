@@ -17,29 +17,27 @@ init() {
 		PrivateKey = $SERVER_PRIV_KEY
 		Address = 10.0.0.1/24
 		ListenPort = 51820
-		SaveConfig = true
 		PostUp = iptables -A FORWARD -i %i -j ACCEPT; iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
 		PostDown = iptables -D FORWARD -i %i -j ACCEPT; iptables -t nat -D POSTROUTING -o eth0 -j MASQUERADE
 	EOF
-
-	systemctl enable wg-quick@wg0.service
-	systemctl start wg-quick@wg0.service
 
 	cat <<-EOF >/etc/wireguard/params
 		SERVER_PUB_KEY=$SERVER_PUB_KEY
 		SERVER_IP=$(curl -s ifconfig.co | tr -d '\n')
 		SERVER_NAME=$SERVER_NAME
-		NUMBER_OF_CLIENTS=1
+		USED_IPS=1
 	EOF
+
+	systemctl enable wg-quick@wg0.service
+	systemctl start wg-quick@wg0.service
 }
 
 add() {
 	CLIENT_NAME=$1
 	CLIENT_PRIV_KEY=$(wg genkey)
 	CLIENT_PUB_KEY=$(echo "$CLIENT_PRIV_KEY" | wg pubkey)
-	#TODO
-	NUMBER_OF_CLIENTS=$((NUMBER_OF_CLIENTS + 1))
-	CLIENT_IP=10.0.0."$NUMBER_OF_CLIENTS"
+	USED_IPS=$((USED_IPS + 1))
+	CLIENT_IP="10.0.0.$USED_IPS/32"
 
 	mkdir -p "/etc/wireguard/$CLIENT_NAME"
 
@@ -63,24 +61,53 @@ add() {
 		AllowedIPs = $CLIENT_IP
 	EOF
 
-	sed -i "s/NUMBER_OF_CLIENTS.*/NUMBER_OF_CLIENTS=$NUMBER_OF_CLIENTS/" /etc/wireguard/params
+	sed -i "s/USED_IPS.*/USED_IPS=$USED_IPS/" /etc/wireguard/params
 
-	# qrencode -t ansiutf8 </etc/wireguard/"$CLIENT_NAME"/"$SERVER_NAME".conf
+	qrencode -t SVG -o "/etc/wireguard/$CLIENT_NAME/qr.svg" <"/etc/wireguard/$CLIENT_NAME/$SERVER_NAME.conf"
+
+	systemctl restart wg-quick@wg0.service
+
+}
+
+remove() {
+	CLIENT_NAME=$1
+	rm -rf "/etc/wireguard/$CLIENT_NAME"
+	sed -i "/#Client $CLIENT_NAME/,/^$/d" /etc/wireguard/wg0.conf
+	systemctl restart wg-quick@wg0.service
+}
+
+list() {
+	ls -d ./*/ | tr -d './'
 }
 
 if [ -r /etc/wireguard/params ]; then
 	#shellcheck source=/dev/null
 	. /etc/wireguard/params
-
-	case $1 in
-	"-a")
-		add "$2"
-		;;
-	*)
-		echo "Usage:"
-		;;
-	esac
-
-else
-	init
 fi
+
+case $1 in
+"-a")
+	if [ "$#" -lt 2 ]; then
+		echo "Usage: wg-wizard -a <client_name>"
+		exit 1
+	fi
+	add "$2"
+	;;
+"-r")
+	if [ "$#" -lt 2 ]; then
+		echo "Usage: wg-wizard -r <client_name>"
+		exit 1
+	fi
+	remove "$2"
+	;;
+"-l")
+	list
+	;;
+"-i")
+	init
+	;;
+*)
+	echo "Usage: wg-wizard -a/-r/-l/-i"
+	exit 1
+	;;
+esac

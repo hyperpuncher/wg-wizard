@@ -65,6 +65,8 @@ add() {
 
 	systemctl restart wg-quick@wg0.service
 
+	echo "Config for $CLIENT_NAME added to /etc/wireguard/$CLIENT_NAME/"
+
 }
 
 remove() {
@@ -72,6 +74,7 @@ remove() {
 	rm -rf "/etc/wireguard/$CLIENT_NAME"
 	sed -i "/#Client $CLIENT_NAME/,/^$/d" /etc/wireguard/wg0.conf
 	systemctl restart wg-quick@wg0.service
+	echo "Client $CLIENT_NAME removed"
 }
 
 list() {
@@ -105,7 +108,15 @@ case $1 in
 	init
 	;;
 *)
-	echo "Usage: wg-wizard -a/-r/-l/-i"
+	cat <<EOF
+Usage: wg-wizard [options]
+
+Options:
+ -a <client_name>  Add new client
+ -r <client_name>  Remove client
+ -l                List clients
+ -i                Setup wireguard
+EOF
 	exit 1
 	;;
 esac

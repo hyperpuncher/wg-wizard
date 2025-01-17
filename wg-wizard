@@ -1,9 +1,7 @@
 #!/usr/bin/env dash
 
 init() {
-	if ! which wg; then
-		apt install -y iptables wireguard qrencode
-	fi
+	apt install -y iptables wireguard qrencode
 
 	echo "net.ipv4.ip_forward = 1" >>/etc/sysctl.conf
 	sysctl -p

@@ -8,6 +8,7 @@
 ```sh
 curl -sOL https://github.com/hyperpuncher/wg-wizard/raw/refs/heads/main/wg-wizard
 chmod +x wg-wizard
+mv wg-wizard /usr/local/bin
 ```
 
 ## Usage

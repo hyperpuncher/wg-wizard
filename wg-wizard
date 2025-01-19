@@ -78,7 +78,7 @@ remove() {
 }
 
 list() {
-	ls -d ./*/ | tr -d './'
+	find /etc/wireguard/ -type d | sed 's/\/etc\/wireguard\///' | sort
 }
 
 if [ -r /etc/wireguard/params ]; then

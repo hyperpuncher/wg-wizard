@@ -6,7 +6,7 @@
 
 ## Install
 ```sh
-curl -O https://github.com/hyperpuncher/wg-wizard/raw/refs/heads/main/wg-wizard
+curl -sOL https://github.com/hyperpuncher/wg-wizard/raw/refs/heads/main/wg-wizard
 chmod +x wg-wizard
 ```
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 CONFIG_DIR=/etc/wireguard
-CONFIG=$CONFIG_DIR/wg0.json
+CONFIG=$CONFIG_DIR/wg0.conf
 
 init() {
 	apt install -y iptables wireguard qrencode

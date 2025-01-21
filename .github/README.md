@@ -5,6 +5,7 @@
 </div>
 
 ## Install
+
 ```sh
 curl -sOL https://github.com/hyperpuncher/wg-wizard/raw/refs/heads/main/wg-wizard
 chmod +x wg-wizard
@@ -12,6 +13,7 @@ mv wg-wizard /usr/local/bin
 ```
 
 ## Usage
+
 ```sh
 Usage: wg-wizard [options]
 
@@ -19,5 +21,7 @@ Options:
  -a <client_name>  Add new client
  -r <client_name>  Remove client
  -l                List clients
+ -g <client_name>  Get client config
  -i                Setup wireguard
+ -u                Update script
 ```

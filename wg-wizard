@@ -85,6 +85,17 @@ list() {
 	find $CONFIG_DIR/ -type d | sed 's/\/etc\/wireguard\///' | sort
 }
 
+get() {
+	qrencode -t ANSIUTF8 -r "$CONFIG_DIR/$1/$SERVER_NAME.conf"
+}
+
+update() {
+	curl -sOL https://github.com/hyperpuncher/wg-wizard/raw/refs/heads/main/wg-wizard
+	chmod +x wg-wizard
+	mv wg-wizard /usr/local/bin
+	echo -e "\nwg-wizard updated 🪄"
+}
+
 if [ -r $CONFIG_DIR/params ]; then
 	#shellcheck source=/dev/null
 	. $CONFIG_DIR/params
@@ -111,6 +122,16 @@ case $1 in
 "-i")
 	init
 	;;
+"-g")
+	if [ "$#" -lt 2 ]; then
+		echo "Usage: wg-wizard -g <client_name>"
+		exit 1
+	fi
+	get "$2"
+	;;
+"-u")
+	update
+	;;
 *)
 	cat <<EOF
 Usage: wg-wizard [options]
@@ -119,7 +140,9 @@ Options:
  -a <client_name>  Add new client
  -r <client_name>  Remove client
  -l                List clients
+ -g <client_name>  Get client config
  -i                Setup wireguard
+ -u                Update script
 EOF
 	exit 1
 	;;

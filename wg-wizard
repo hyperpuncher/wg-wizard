@@ -31,6 +31,8 @@ init() {
 
 	systemctl enable wg-quick@wg0.service
 	systemctl start wg-quick@wg0.service
+
+	echo -e "\nwg-wizard installed 🪄"
 }
 
 add() {

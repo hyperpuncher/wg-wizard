@@ -1,4 +1,7 @@
-#!/usr/bin/env dash
+#!/usr/bin/env bash
+
+CONFIG_DIR=/etc/wireguard
+CONFIG=$CONFIG_DIR/wg0.json
 
 init() {
 	apt install -y iptables wireguard qrencode
@@ -10,7 +13,7 @@ init() {
 	SERVER_PUB_KEY=$(echo "$SERVER_PRIV_KEY" | wg pubkey)
 	read -rp "Enter VPN name: " SERVER_NAME
 
-	cat <<-EOF >/etc/wireguard/wg0.conf
+	cat <<-EOF >$CONFIG
 		[Interface]
 		PrivateKey = $SERVER_PRIV_KEY
 		Address = 10.0.0.1/24
@@ -19,7 +22,7 @@ init() {
 		PostDown = iptables -D FORWARD -i %i -j ACCEPT; iptables -t nat -D POSTROUTING -o eth0 -j MASQUERADE
 	EOF
 
-	cat <<-EOF >/etc/wireguard/params
+	cat <<-EOF >$CONFIG_DIR/params
 		SERVER_PUB_KEY=$SERVER_PUB_KEY
 		SERVER_IP=$(curl -s ifconfig.co | tr -d '\n')
 		SERVER_NAME=$SERVER_NAME
@@ -37,9 +40,9 @@ add() {
 	USED_IPS=$((USED_IPS + 1))
 	CLIENT_IP="10.0.0.$USED_IPS/32"
 
-	mkdir -p "/etc/wireguard/$CLIENT_NAME"
+	mkdir -p "$CONFIG_DIR/$CLIENT_NAME"
 
-	cat <<-EOF >"/etc/wireguard/$CLIENT_NAME/$SERVER_NAME.conf"
+	cat <<-EOF >"$CONFIG_DIR/$CLIENT_NAME/$SERVER_NAME.conf"
 		[Interface]
 		PrivateKey = $CLIENT_PRIV_KEY
 		Address = $CLIENT_IP
@@ -51,7 +54,7 @@ add() {
 		PersistentKeepalive = 20
 	EOF
 
-	cat <<-EOF >>/etc/wireguard/wg0.conf
+	cat <<-EOF >>$CONFIG
 
 		#Client $CLIENT_NAME
 		[Peer]
@@ -59,31 +62,32 @@ add() {
 		AllowedIPs = $CLIENT_IP
 	EOF
 
-	sed -i "s/USED_IPS.*/USED_IPS=$USED_IPS/" /etc/wireguard/params
+	sed -i "s/USED_IPS.*/USED_IPS=$USED_IPS/" $CONFIG_DIR/params
 
-	qrencode -t SVG -o "/etc/wireguard/$CLIENT_NAME/qr.svg" <"/etc/wireguard/$CLIENT_NAME/$SERVER_NAME.conf"
+	qrencode -t ANSIUTF8 -r "$CONFIG_DIR/$CLIENT_NAME/$SERVER_NAME.conf"
+	qrencode -o "$CONFIG_DIR/$CLIENT_NAME/qr.png" -r "$CONFIG_DIR/$CLIENT_NAME/$SERVER_NAME.conf"
 
 	systemctl restart wg-quick@wg0.service
 
-	echo "Config for $CLIENT_NAME added to /etc/wireguard/$CLIENT_NAME/"
+	echo "Config for $CLIENT_NAME added to $CONFIG_DIR/$CLIENT_NAME/"
 
 }
 
 remove() {
 	CLIENT_NAME=$1
-	rm -rf "/etc/wireguard/$CLIENT_NAME"
-	sed -i "/#Client $CLIENT_NAME/,/^$/d" /etc/wireguard/wg0.conf
+	rm -rf "$CONFIG_DIR/$CLIENT_NAME"
+	sed -i "/#Client $CLIENT_NAME/,/^$/d" $CONFIG
 	systemctl restart wg-quick@wg0.service
 	echo "Client $CLIENT_NAME removed"
 }
 
 list() {
-	find /etc/wireguard/ -type d | sed 's/\/etc\/wireguard\///' | sort
+	find $CONFIG_DIR/ -type d | sed 's/\/etc\/wireguard\///' | sort
 }
 
-if [ -r /etc/wireguard/params ]; then
+if [ -r $CONFIG_DIR/params ]; then
 	#shellcheck source=/dev/null
-	. /etc/wireguard/params
+	. $CONFIG_DIR/params
 fi
 
 case $1 in

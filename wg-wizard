@@ -49,6 +49,7 @@ add() {
 		[Interface]
 		PrivateKey = $CLIENT_PRIV_KEY
 		Address = $CLIENT_IP
+		DNS = 9.9.9.9, 1.1.1.1
 
 		[Peer]
 		PublicKey = $SERVER_PUB_KEY
